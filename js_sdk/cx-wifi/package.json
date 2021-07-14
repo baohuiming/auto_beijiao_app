@@ -1,0 +1,11 @@
+{
+    "id": "cx-wifi",
+    "name": "Wifi 连接用于有密码连接",
+    "version": "1.0.0",
+    "description": "用于安卓设置wifi连接",
+    "keywords": [
+        "wifi",
+        "wi-fi",
+        "热点"
+    ]
+}
