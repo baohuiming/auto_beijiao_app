@@ -22,6 +22,14 @@ function getWifiManager() {
 }
 
 /**
+ * 断开wifi
+ */
+function disconnectWifi() {
+	let wifiManager = getWifiManager();
+	return wifiManager.disconnect()
+}
+
+/**
  * 设置wifi (可以根据返回status验证是否切换成功)
  * @param {String} ssid
  * @param {String} pwd 密码
@@ -91,8 +99,7 @@ function createWifiConfig(wifiManager, ssid) {
 		console.log('wifi已存在');
 		//wifiManager.removeNetwork(plus.android.getAttribute(tempConfig, "networkId"));
 		plus.android.autoCollection(tempConfig);
-	}
-	else{
+	} else {
 		netId = wifiManager.addNetwork(config)
 	}
 
@@ -148,6 +155,7 @@ function getConnectedSSID() {
 module.exports = {
 	connectWifi: setWifi, //连接wifi
 	getConnectedSSID: getConnectedSSID, //获取当前wifi ssid
+	disconnectWifi: disconnectWifi,
 	removeWifi(i) { // 通过网络id删除wifi
 		let wifiManager = getWifiManager();
 		removeWifi(wifiManager, i);
