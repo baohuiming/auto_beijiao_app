@@ -2,8 +2,8 @@
     "name" : "直连校园网",
     "appid" : "__UNI__64EEF9A",
     "description" : "",
-    "versionName" : "1.0.0",
-    "versionCode" : "100",
+    "versionName" : "1.0.1",
+    "versionCode" : 101,
     "transformPx" : false,
     /* 5+App特有相关 */
     "app-plus" : {
@@ -34,7 +34,7 @@
                     "<uses-permission android:name=\"android.permission.CHANGE_WIFI_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
                 ],
-                "abiFilters" : [ "armeabi-v7a", "arm64-v8a", "x86" ],
+                "abiFilters" : [ "arm64-v8a" ],
                 "autoSdkPermissions" : false
             },
             /* ios打包配置 */

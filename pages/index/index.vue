@@ -9,7 +9,7 @@
 		<button @click="connect">连接</button>
 		<checkbox-group @change="cb_change">
 			<label>
-				<checkbox value="autoConnect" :checked="autoConnect" />自动连接
+				<checkbox value="autoConnect" :checked="autoConnect" />打开软件后自动连接
 			</label>
 		</checkbox-group>
 		<div id="loading">
@@ -20,9 +20,10 @@
 		</div>
 		<view class="about">
 			<text>
-				版本：1.0<br>
-				作者：鲍慧明
+				版本：1.0.1<br>
+				作者：鲍慧明<br>
 			</text>
+			<text class="link" @click="get_update">获取最新版</text>
 		</view>
 	</view>
 </template>
@@ -42,16 +43,16 @@
 				ssid: 'local.wlan.bjtu',
 				student_number: null,
 				password: null,
-				autoConnect: true,
-				loading: false
+				autoConnect: false,
+				loading: false,
 			}
 		},
 		onLoad() {
 			let self = this;
 			self.student_number = uni.getStorageSync("student_number")
 			self.password = uni.getStorageSync("password")
-			self.autoConnect = uni.getStorageSync("autoConnect")
-			self.ssid = uni.getStorageSync("ssid")
+			self.autoConnect = uni.getStorageSync("autoConnect") || false
+			self.ssid = uni.getStorageSync("ssid") || 'local.wlan.bjtu'
 			if (self.student_number != null && self.password != null && self.autoConnect == true) {
 				console.log('自动连接');
 				self.connect()
@@ -60,17 +61,20 @@
 		methods: {
 			connectWifi(callback) {
 				let self = this;
+				self.loading = true
 				let nowSSID = getConnectedSSID()
 				if ('\"' + self.ssid + '\"' != nowSSID) {
 					if (disconnectWifi() === true) {
 						let res = connectWifi(self.ssid);
 						if (res.status == true) {
+							self.loading = false
 							callback()
 							clearInterval(t)
 						}
 						let t = setInterval(function() {
 							let res = connectWifi(self.ssid);
 							if (res.status == true) {
+								self.loading = false
 								callback()
 								clearInterval(t)
 							}
@@ -165,10 +169,6 @@
 							key: "ssid",
 							data: self.ssid
 						})
-						uni.setStorage({
-							key: "autoConnect",
-							data: self.autoConnect
-						})
 					}
 				});
 			},
@@ -179,8 +179,14 @@
 			cb_change(e) {
 				let self = this;
 				self.autoConnect = (e.detail.value[0] == 'autoConnect');
+				uni.setStorage({
+					key: "autoConnect",
+					data: self.autoConnect
+				})
+			},
+			get_update() {
+				plus.runtime.openURL('https://baohuiming.xyz/articles/auto-wifi')
 			}
-
 		}
 	}
 </script>
@@ -240,16 +246,22 @@
 		text {
 			line-height: 25px;
 		}
+
+		.link {
+			color: #55aaff;
+			text-decoration: underline;
+			margin-top: 3px;
+		}
 	}
 
 	#loading {
-		.spinner {
-			width: 60px;
-			height: 60px;
 
-			position: relative;
-			margin: 10px auto;
-		}
+		width: 60px;
+		height: 60px;
+
+		position: relative;
+		margin: 20px auto;
+
 
 		.double-bounce1,
 		.double-bounce2 {
