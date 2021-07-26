@@ -94,9 +94,9 @@ function createWifiConfig(wifiManager, ssid) {
 
 	let tempConfig = isExsits(wifiManager, ssid);
 	let netId = plus.android.getAttribute(tempConfig, "networkId");
-	console.log(netId);
+	//console.log(netId);
 	if (tempConfig !== null) {
-		console.log('wifi已存在');
+		//console.log('wifi已存在');
 		//wifiManager.removeNetwork(plus.android.getAttribute(tempConfig, "networkId"));
 		plus.android.autoCollection(tempConfig);
 	} else {

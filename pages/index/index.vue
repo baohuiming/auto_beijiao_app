@@ -20,7 +20,7 @@
 		</div>
 		<view class="about">
 			<text>
-				版本：1.0.1<br>
+				版本：1.0.2<br>
 				作者：鲍慧明<br>
 			</text>
 			<text class="link" @click="get_update">获取最新版</text>
@@ -36,6 +36,7 @@
 		removeWifiBySSID,
 		disconnectWifi
 	} from '../../js_sdk/cx-wifi/cx-wifi/cx-wifi.js'
+	let timer;
 	export default {
 		data() {
 			return {
@@ -54,38 +55,39 @@
 			self.autoConnect = uni.getStorageSync("autoConnect") || false
 			self.ssid = uni.getStorageSync("ssid") || 'local.wlan.bjtu'
 			if (self.student_number != null && self.password != null && self.autoConnect == true) {
-				console.log('自动连接');
+				//console.log('自动连接');
 				self.connect()
 			}
 		},
 		methods: {
-			connectWifi(callback) {
+			connectWifi() {
 				let self = this;
 				self.loading = true
 				let nowSSID = getConnectedSSID()
 				if ('\"' + self.ssid + '\"' != nowSSID) {
-					if (disconnectWifi() === true) {
-						let res = connectWifi(self.ssid);
-						if (res.status == true) {
-							self.loading = false
-							callback()
-							clearInterval(t)
-						}
-						let t = setInterval(function() {
-							let res = connectWifi(self.ssid);
-							if (res.status == true) {
-								self.loading = false
-								callback()
-								clearInterval(t)
+					//连接其他wifi时
+					//断开其他wifi的连接
+					let res;
+					while (1) {
+						res = disconnectWifi();
+						if (res === true) {
+							while (1) {
+								res = connectWifi(self.ssid)
+								if (res.status == true) {
+									self.loading = false
+									return true
+								}
 							}
-						}, 3000)
+							break
+						}
 					}
 				} else {
-					callback()
+					//已经连接wifi时
+					self.loading = false
+					return true
 				}
-
 			},
-			connectWeb() {
+			connectWeb(callback) {
 				let self = this;
 				self.loading = true
 				// 用户信息参数
@@ -116,65 +118,107 @@
 				const url = 'http://10.10.43.3/drcom/login'
 				uni.request({
 					url: url,
-					timeout: 3000,
+					timeout: 500,
 					method: 'GET',
 					data: params,
 					success: res => {
-						console.log(res);
 						if (res.data.indexOf('\"result\":1') != -1) {
 							uni.showToast({
 								icon: "none",
 								title: "连接成功"
 							})
 							self.loading = false
-							plus.runtime.quit()
+							if (typeof callback == 'function') {
+								callback({
+									status: 'success',
+									code: 1
+								})
+							}
 						} else if (res.data.indexOf('error') != -1) {
 							uni.showToast({
 								icon: "none",
-								title: "账户暂不可用"
+								title: "请求过于频繁"
 							})
-							setTimeout(function() {
-								self.connect()
-							}, 3000)
+							if (typeof callback == 'function') {
+								callback({
+									status: 'fail',
+									code: 2
+								})
+							}
 						} else {
 							uni.showToast({
 								icon: "none",
-								title: "连接失败"
+								title: "账户不可用"
 							})
-							setTimeout(function() {
-								self.connect()
-							}, 3000)
+							if (typeof callback == 'function') {
+								callback({
+									status: 'fail',
+									code: 3
+								})
+							}
 						}
-
 					},
 					fail: res => {
 						uni.showToast({
 							icon: "none",
-							title: "连接失败"
+							title: "连接失败，请在“登录到WLAN网络”界面选择“保持连接”"
 						})
-						setTimeout(function() {
-							self.connect()
-						}, 500)
+						if (typeof callback == 'function') {
+							callback({
+								status: 'fail',
+								code: 0
+							})
+						}
 					},
 					complete: () => {
-						uni.setStorage({
-							key: "student_number",
-							data: self.student_number
-						})
-						uni.setStorage({
-							key: "password",
-							data: self.password
-						})
-						uni.setStorage({
-							key: "ssid",
-							data: self.ssid
-						})
+						self.saveStorage()
 					}
 				});
 			},
+			saveStorage() {
+				let self = this;
+				uni.setStorage({
+					key: "student_number",
+					data: self.student_number
+				})
+				uni.setStorage({
+					key: "password",
+					data: self.password
+				})
+				uni.setStorage({
+					key: "ssid",
+					data: self.ssid
+				})
+			},
 			connect() {
 				let self = this;
-				self.connectWifi(self.connectWeb)
+				clearTimeout(timer);
+				self.connectWifi()
+				self.connectWeb(function(res) {
+					console.log(res);
+					if (res.status == 'fail') {
+						switch (res.code) {
+							case 0:
+								timer = setTimeout(function() {
+									return self.connect()
+								}, 100)
+								break;
+							case 3:
+								timer = setTimeout(function() {
+									return self.connect()
+								}, 1000)
+								break;
+							default:
+								timer = setTimeout(function() {
+									return self.connect()
+								}, 3000)
+								break;
+						}
+					} else if (res.status == 'success') {
+						clearTimeout(timer);
+						plus.runtime.quit()
+					}
+				})
 			},
 			cb_change(e) {
 				let self = this;
