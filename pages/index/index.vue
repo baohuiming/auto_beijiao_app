@@ -20,7 +20,7 @@
 		</div>
 		<view class="about">
 			<text>
-				版本：1.0.2<br>
+				版本：1.2.0<br>
 				作者：鲍慧明<br>
 			</text>
 			<text class="link" @click="get_update">获取最新版</text>
@@ -36,7 +36,7 @@
 		removeWifiBySSID,
 		disconnectWifi
 	} from '../../js_sdk/cx-wifi/cx-wifi/cx-wifi.js'
-	let timer;
+	let timer, timer2;
 	export default {
 		data() {
 			return {
@@ -56,7 +56,19 @@
 			self.ssid = uni.getStorageSync("ssid") || 'local.wlan.bjtu'
 			if (self.student_number != null && self.password != null && self.autoConnect == true) {
 				//console.log('自动连接');
+				self.loading = true
 				self.connect()
+			}
+		},
+		onShow() {
+			var args = plus.runtime.arguments;
+			if (args) {
+				// 处理args参数，如直达到某新页面等
+				let self = this;
+				args = JSON.parse(args);
+				if (args.route == "networkStatusChange") {
+					self.connect()
+				}
 			}
 		},
 		methods: {
@@ -195,26 +207,42 @@
 				clearTimeout(timer);
 				self.connectWifi()
 				self.connectWeb(function(res) {
-					console.log(res);
 					if (res.status == 'fail') {
 						switch (res.code) {
 							case 0:
-								timer = setTimeout(function() {
-									return self.connect()
-								}, 100)
+								self.go_to_page('wifi')
+								uni.onNetworkStatusChange(function(res) {
+									if (res.networkType == "wifi") {
+										//网络状态更改为wifi
+										plus.runtime.launchApplication({
+											pname: "com.baohuiming.autowifi",
+											extra: {
+												url: "baohuiming://com.baohuiming.autowifi", //B款app配置的schemes+云打包的包名
+												route: "networkStatusChange"
+											},
+										}, function(res) {
+											console.log(res);
+										});
+										uni.offNetworkStatusChange(function() {})
+									}
+								})
+								//return self.connect()
 								break;
 							case 3:
+								clearTimeout(timer2);
 								timer = setTimeout(function() {
 									return self.connect()
 								}, 1000)
 								break;
 							default:
+								clearTimeout(timer2);
 								timer = setTimeout(function() {
 									return self.connect()
 								}, 3000)
 								break;
 						}
 					} else if (res.status == 'success') {
+						clearTimeout(timer2);
 						clearTimeout(timer);
 						plus.runtime.quit()
 					}
@@ -230,6 +258,21 @@
 			},
 			get_update() {
 				plus.runtime.openURL('https://baohuiming.xyz/articles/auto-wifi')
+			},
+			go_to_page(page) {
+				//获取宿主上下文
+				var main = plus.android.runtimeMainActivity();
+				if (page == 'wifi') {
+					//获取Android的Intent对象
+					var Intent = plus.android.importClass("android.content.Intent");
+					//创建 intent
+					var intent = new Intent();
+					intent.setClassName("com.android.settings", "com.android.settings.Settings$WifiSettingsActivity");
+					//开启新的任务栈 （跨进程）
+					//intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					//开启新的界面
+					main.startActivity(intent);
+				}
 			}
 		}
 	}
