@@ -20,7 +20,7 @@
 		</div>
 		<view class="about">
 			<text>
-				版本：1.2.0<br>
+				版本：1.2.2<br>
 				作者：鲍慧明<br>
 			</text>
 			<text class="link" @click="get_update">获取最新版</text>
@@ -46,6 +46,7 @@
 				password: null,
 				autoConnect: false,
 				loading: false,
+				accessibility: null,
 			}
 		},
 		onLoad() {
@@ -74,7 +75,9 @@
 		methods: {
 			connectWifi() {
 				let self = this;
-				self.loading = true
+				setTimeout(function() {
+					self.loading = true
+				}, 0)
 				let nowSSID = getConnectedSSID()
 				if ('\"' + self.ssid + '\"' != nowSSID) {
 					//连接其他wifi时
@@ -205,12 +208,17 @@
 			connect() {
 				let self = this;
 				clearTimeout(timer);
+				if (self.accessibility == null) {
+					self.accessibility = self.isAccessibilityServiceOn();
+				}
 				self.connectWifi()
 				self.connectWeb(function(res) {
 					if (res.status == 'fail') {
 						switch (res.code) {
 							case 0:
-								self.go_to_page('wifi')
+								if (self.accessibility == true) {
+									self.go_to_page('wifi')
+								}
 								uni.onNetworkStatusChange(function(res) {
 									if (res.networkType == "wifi") {
 										//网络状态更改为wifi
@@ -226,6 +234,7 @@
 										uni.offNetworkStatusChange(function() {})
 									}
 								})
+
 								//return self.connect()
 								break;
 							case 3:
@@ -273,6 +282,32 @@
 					//开启新的界面
 					main.startActivity(intent);
 				}
+			},
+			isAccessibilityServiceOn() {
+				// 判断辅助功能是否开启，需要在程序初始化结束后调用
+				let serviceName = "com.baohuiming.skipsamsungportal";
+				var MainActivity = plus.android.runtimeMainActivity();
+				var Context = plus.android.importClass('android.content.Context');
+				plus.android.importClass('java.util.ArrayList');
+				plus.android.importClass('android.content.pm.ResolveInfo');
+				let AccessibilityEvent = plus.android.importClass('android.view.accessibility.AccessibilityEvent');
+				let am = MainActivity.getSystemService(Context.ACCESSIBILITY_SERVICE);
+				//let slist = plus.android.invoke(am, "getInstalledAccessibilityServiceList");
+				let slist = plus.android.invoke(am, "getEnabledAccessibilityServiceList", AccessibilityEvent.TYPES_ALL_MASK);
+				if (slist != null) {
+					let len = plus.android.invoke(slist, "size");
+					for (let i = 0; i < len; i++) {
+						let serviceInfo = plus.android.invoke(slist, "get", i);
+						let resolveInfo = plus.android.invoke(serviceInfo, "getResolveInfo");
+						let resolveInfoStr = plus.android.invoke(resolveInfo, 'toString');
+						console.log(resolveInfoStr);
+						if (resolveInfoStr.indexOf(serviceName) != -1) {
+							// 辅助功能已开启
+							return true
+						}
+					}
+				}
+				return false
 			}
 		}
 	}
