@@ -1,30 +1,36 @@
 <template>
 	<view class="content">
-		<view class="text-area">
-			<text class="title">{{title}}</text>
-		</view>
-		<input v-model="ssid" placeholder="SSID" />
-		<input v-model="student_number" placeholder="学号" />
-		<input v-model="password" placeholder="密码" password />
-		<button @click="connect">连接</button>
-		<checkbox-group @change="cb_change">
-			<label>
-				<checkbox value="autoConnect" :checked="autoConnect" />打开软件后自动连接
-			</label>
-		</checkbox-group>
-		<div id="loading">
-			<div class="spinner" v-show="loading">
-				<div class="double-bounce1"></div>
-				<div class="double-bounce2"></div>
+		<view class="title">{{title}}</view>
+		<view class="connect">
+			<view class="connect-item">
+				<text class="icon">&#xe657;</text>
+				<input v-model="ssid" placeholder="SSID" placeholder-class="placeholder-class" />
+			</view>
+			<view class="connect-item">
+				<text class="icon">&#xe613;</text>
+				<input v-model="student_number" placeholder="学号" placeholder-class="placeholder-class" />
+			</view>
+			<view class="connect-item">
+				<text class="icon">&#xe616;</text>
+				<input v-model="password" placeholder="密码" password placeholder-class="placeholder-class" />
+			</view>
+			<button @click="connect" v-show="!loading">连接</button>
+			<div id="loading" v-show="loading">
+				<div class="spinner">
+					<div class="double-bounce1"></div>
+					<div class="double-bounce2"></div>
+				</div>
 			</div>
-		</div>
-		<view class="about">
-			<text>
-				版本：1.2.2<br>
-				作者：鲍慧明<br>
-			</text>
-			<text class="link" @click="get_update">获取最新版</text>
 		</view>
+		<view class="config">
+			<uni-list class="list">
+				<uni-list-item title="自动连接" note="打开软件后自动连接" showSwitch="true" @switchChange="switch_auto_connect" :switchChecked="autoConnect"></uni-list-item>
+				<uni-list-item title="插件" note="用以跳过WiFi认证,仅支持三星手机" :rightText="accessibility.install?accessibility.on?'已启用':'未启用':'去安装'" :rightTextStyle='accessibility.on?"color: green;":"color: red;"' link :clickable="true" @click="switch_accessibility"></uni-list-item>
+				<uni-list-item title="版本" :rightText="version" link :clickable="true" @click="get_update"></uni-list-item>
+				<uni-list-item title="作者" rightText="鲍慧明" link :clickable="true" @click="get_author_homepage"></uni-list-item>
+			</uni-list>
+		</view>
+
 	</view>
 </template>
 
@@ -36,17 +42,21 @@
 		removeWifiBySSID,
 		disconnectWifi
 	} from '../../js_sdk/cx-wifi/cx-wifi/cx-wifi.js'
-	let timer, timer2;
+	let timer;
 	export default {
 		data() {
 			return {
-				title: '连接北交校园网',
+				title: '直连北交校园网',
 				ssid: 'local.wlan.bjtu',
 				student_number: null,
 				password: null,
 				autoConnect: false,
 				loading: false,
-				accessibility: null,
+				accessibility: {
+					install: null,
+					on: null
+				},
+				version: "1.3.0"
 			}
 		},
 		onLoad() {
@@ -62,6 +72,7 @@
 			}
 		},
 		onShow() {
+			let self = this;
 			var args = plus.runtime.arguments;
 			if (args) {
 				// 处理args参数，如直达到某新页面等
@@ -71,13 +82,11 @@
 					self.connect()
 				}
 			}
+			self.accessibility = self.check_accessibility_service();
 		},
 		methods: {
 			connectWifi() {
 				let self = this;
-				setTimeout(function() {
-					self.loading = true
-				}, 0)
 				let nowSSID = getConnectedSSID()
 				if ('\"' + self.ssid + '\"' != nowSSID) {
 					//连接其他wifi时
@@ -121,7 +130,7 @@
 				}
 				// 时间参数
 				let t = Date.now(); // 获取毫秒级时间戳
-				let interval = 5000; // 页面加载完毕到点击确认按钮的时间间隔， 单位ms
+				let interval = 5000; // 页面加载完毕到点击确认按钮的时间间隔，单位ms
 				let time1_params = {
 					'callback': 'dr' + (t + interval).toString()
 				}
@@ -207,16 +216,14 @@
 			},
 			connect() {
 				let self = this;
+				self.loading = true
 				clearTimeout(timer);
-				if (self.accessibility == null) {
-					self.accessibility = self.isAccessibilityServiceOn();
-				}
 				self.connectWifi()
 				self.connectWeb(function(res) {
 					if (res.status == 'fail') {
 						switch (res.code) {
 							case 0:
-								if (self.accessibility == true) {
+								if (self.accessibility.on == true) {
 									self.go_to_page('wifi')
 								}
 								uni.onNetworkStatusChange(function(res) {
@@ -238,28 +245,25 @@
 								//return self.connect()
 								break;
 							case 3:
-								clearTimeout(timer2);
 								timer = setTimeout(function() {
 									return self.connect()
 								}, 1000)
 								break;
 							default:
-								clearTimeout(timer2);
 								timer = setTimeout(function() {
 									return self.connect()
 								}, 3000)
 								break;
 						}
 					} else if (res.status == 'success') {
-						clearTimeout(timer2);
 						clearTimeout(timer);
 						plus.runtime.quit()
 					}
 				})
 			},
-			cb_change(e) {
+			switch_auto_connect(e) {
 				let self = this;
-				self.autoConnect = (e.detail.value[0] == 'autoConnect');
+				self.autoConnect = e.value;
 				uni.setStorage({
 					key: "autoConnect",
 					data: self.autoConnect
@@ -268,22 +272,27 @@
 			get_update() {
 				plus.runtime.openURL('https://baohuiming.xyz/articles/auto-wifi')
 			},
+			get_author_homepage() {
+				plus.runtime.openURL('https://github.com/bjtu-bhm')
+			},
 			go_to_page(page) {
 				//获取宿主上下文
 				var main = plus.android.runtimeMainActivity();
+				var Intent = plus.android.importClass("android.content.Intent");
+				var intent = new Intent();
 				if (page == 'wifi') {
-					//获取Android的Intent对象
-					var Intent = plus.android.importClass("android.content.Intent");
-					//创建 intent
-					var intent = new Intent();
 					intent.setClassName("com.android.settings", "com.android.settings.Settings$WifiSettingsActivity");
-					//开启新的任务栈 （跨进程）
-					//intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					//开启新的界面
-					main.startActivity(intent);
+
+				} else if (page == 'accessibility') {
+					intent.setClassName("com.android.settings", "com.android.settings.Settings$AccessibilityInstalledServiceActivity")
+				} else {
+					return
 				}
+				//开启新的任务栈 （跨进程）
+				//intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				main.startActivity(intent);
 			},
-			isAccessibilityServiceOn() {
+			check_accessibility_service() {
 				// 判断辅助功能是否开启，需要在程序初始化结束后调用
 				let serviceName = "com.baohuiming.skipsamsungportal";
 				var MainActivity = plus.android.runtimeMainActivity();
@@ -292,42 +301,78 @@
 				plus.android.importClass('android.content.pm.ResolveInfo');
 				let AccessibilityEvent = plus.android.importClass('android.view.accessibility.AccessibilityEvent');
 				let am = MainActivity.getSystemService(Context.ACCESSIBILITY_SERVICE);
-				//let slist = plus.android.invoke(am, "getInstalledAccessibilityServiceList");
-				let slist = plus.android.invoke(am, "getEnabledAccessibilityServiceList", AccessibilityEvent.TYPES_ALL_MASK);
-				if (slist != null) {
-					let len = plus.android.invoke(slist, "size");
-					for (let i = 0; i < len; i++) {
-						let serviceInfo = plus.android.invoke(slist, "get", i);
-						let resolveInfo = plus.android.invoke(serviceInfo, "getResolveInfo");
-						let resolveInfoStr = plus.android.invoke(resolveInfo, 'toString');
-						console.log(resolveInfoStr);
-						if (resolveInfoStr.indexOf(serviceName) != -1) {
-							// 辅助功能已开启
-							return true
+				let ilist = plus.android.invoke(am, "getInstalledAccessibilityServiceList");
+				let elist = plus.android.invoke(am, "getEnabledAccessibilityServiceList", AccessibilityEvent.TYPES_ALL_MASK);
+
+				function check(list) {
+					if (list != null) {
+						let len = plus.android.invoke(list, "size");
+						for (let i = 0; i < len; i++) {
+							let serviceInfo = plus.android.invoke(list, "get", i);
+							let resolveInfo = plus.android.invoke(serviceInfo, "getResolveInfo");
+							let resolveInfoStr = plus.android.invoke(resolveInfo, 'toString');
+							//console.log(resolveInfoStr);
+							if (resolveInfoStr.indexOf(serviceName) != -1) {
+								// 辅助功能已开启或已安装
+								return true
+							}
 						}
 					}
+					return false
 				}
-				return false
+
+				return {
+					install: check(ilist),
+					on: check(elist)
+				}
+
+			},
+			switch_accessibility() {
+				let self = this;
+				if (self.accessibility.install != true) {
+					// 去安装插件
+					self.get_update()
+				} else {
+					// 已经安装插件
+					self.go_to_page('accessibility')
+				}
 			}
 		}
 	}
 </script>
 
 <style lang="scss">
-	.content {
+	$bg-color: #4287e8;
+
+	@font-face {
+		font-family: 'iconfont';
+		src: url('~@/static/iconfont.ttf');
+	}
+
+	page {
+		background-color: #f8f8f8;
+	}
+
+	.title {
+		background-color: $bg-color;
+		color: white;
+		font-size: 60rpx;
+		font-family: Arial, Helvetica, sans-serif;
+		padding: 12px 0 0 18px;
+	}
+
+	.connect {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-	}
-
-	.logo {
-		height: 200rpx;
-		width: 200rpx;
-		margin-top: 200rpx;
-		margin-left: auto;
-		margin-right: auto;
-		margin-bottom: 50rpx;
+		background-color: $bg-color;
+		padding-top: 20px;
+		.connect-item{
+			display: flex;
+			line-height: 48px;
+		}
+		padding-bottom: 15px;
 	}
 
 	.text-area {
@@ -335,45 +380,49 @@
 		justify-content: center;
 	}
 
-	.title {
-		font-size: 48rpx;
-		font-family: Arial, Helvetica, sans-serif;
-		font-weight: 600;
-		color: #333333;
-		line-height: 80px;
-		margin-top: 80px;
+	input {
+		margin: 3px 0;
+		padding: 10px 12px;
+		background-color: lighten($color: $bg-color, $amount: 15);
+		border-radius: 0 6px 6px 0;
+		color: white;
+		width: 500rpx;
+		height: 28px;
+	}
+	
+	.icon {
+		font-family: 'iconfont';
+		font-size: 24px;
+		color: #f5f5f5;
+		margin: 3px 0;
+		background-color: lighten($color: $bg-color, $amount: 15);
+		height: 48px;
+		line-height: 48px;
+		border-radius: 6px 0 0 6px;
+		padding-left: 12px;
 	}
 
-	input {
-		margin: 2px;
-		padding: 10px 12px;
-		background-color: #F8F8F8;
+	.placeholder-class {
+		color: #e3e3e3;
 	}
 
 	button {
-		width: 180px;
-		background-color: #0059b9;
+		width: 140px;
+		background-color: #82bfff;
 		color: #fff;
 		margin: 5px;
+		border-radius: 90px;
+		font-size: 16px;
+		height: 40px;
+		line-height: 40px;
+		font-family: Arial, Helvetica, sans-serif;
+		letter-spacing: 2px;
+		font-weight: bolder;
+		margin: 25px auto;
 	}
 
 	button::after {
 		border: none;
-	}
-
-	.about {
-		margin: 25px;
-		text-align: center;
-
-		text {
-			line-height: 25px;
-		}
-
-		.link {
-			color: #55aaff;
-			text-decoration: underline;
-			margin-top: 3px;
-		}
 	}
 
 	#loading {
@@ -382,7 +431,7 @@
 		height: 60px;
 
 		position: relative;
-		margin: 20px auto;
+		margin: 15px auto;
 
 
 		.double-bounce1,
@@ -390,7 +439,7 @@
 			width: 100%;
 			height: 100%;
 			border-radius: 50%;
-			background-color: #0055ff;
+			background-color: #82bfff;
 			opacity: 0.6;
 			position: absolute;
 			top: 0;
@@ -430,5 +479,9 @@
 				-webkit-transform: scale(1.0);
 			}
 		}
+	}
+
+	.list {
+		width: 100%;
 	}
 </style>

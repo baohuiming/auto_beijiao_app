@@ -3,15 +3,15 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "auto-beijiao",
+				"navigationBarTitleText": "直连北交校园网",
 				"navigationStyle":"custom"
 			}
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "auto-beijiao",
-		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8"
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "直连北交校园网",
+		"navigationBarBackgroundColor": "#2B5796",
+		"backgroundColor": "#2B5796"
 	}
 }
